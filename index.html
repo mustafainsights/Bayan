@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Bayan Live Subtitles</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#d4a84b;
+  --green:#1a5c2a;
+  --sub-size:34px;
+  --prev-size:20px;
+}
+html,body{height:100%;width:100%;overflow:hidden}
+body{
+  background:#0d0d0d;
+  font-family:'Inter',sans-serif;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* ── TOP BAR ── */
+#bar{
+  background:#111;
+  border-bottom:1px solid #1e1e1e;
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+  flex-wrap:wrap;
+}
+.em{
+  width:32px;height:32px;
+  background:linear-gradient(135deg,#1a5c2a,#2a8a3e);
+  border:1px solid var(--gold);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:var(--gold);font-weight:700;flex-shrink:0;
+}
+.ttl{font-size:.82rem;font-weight:600;color:#ddd;line-height:1.2}
+.sub{font-size:.62rem;color:#444}
+
+select{
+  background:#1a1a1a;border:1px solid #252525;
+  border-radius:7px;padding:7px 10px;
+  color:#bbb;font-size:.75rem;
+  font-family:'Inter',sans-serif;outline:none;
+  -webkit-appearance:none;
+  flex:1;min-width:0;max-width:180px;
+}
+
+#dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;flex-shrink:0;transition:background .3s}
+#dot.live{background:#e74c3c;animation:pd 1.4s infinite}
+#dot.busy{background:var(--gold)}
+@keyframes pd{0%,100%{opacity:1}50%{opacity:.2}}
+#slbl{font-size:.72rem;color:#444;white-space:nowrap}
+
+.gbtn{
+  background:var(--gold);color:#000;
+  border:none;border-radius:8px;
+  padding:9px 18px;font-size:.82rem;font-weight:700;
+  font-family:'Inter',sans-serif;cursor:pointer;
+  white-space:nowrap;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  transition:filter .15s;
+}
+.gbtn:active{filter:brightness(.85)}
+.gbtn.stop{background:#1a1a1a;border:1px solid #c0392b;color:#c0392b}
+
+/* ── STAGE ── */
+#stage{
+  flex:1;
+  display:flex;flex-direction:column;
+  justify-content:flex-end;
+  padding:12px 12px 24px;
+  gap:5px;overflow:hidden;position:relative;
+}
+
+/* idle */
+#idle{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+  transition:opacity .4s;
+}
+#idle .ic{font-size:3rem;opacity:.12;margin-bottom:8px}
+#idle p{font-size:.8rem;color:#2a2a2a;line-height:1.7;max-width:240px}
+#idle p strong{color:#444}
+#idle.gone{opacity:0}
+
+/* size btns */
+#szc{position:absolute;top:10px;right:10px;display:flex;gap:5px}
+#szc button{
+  width:32px;height:32px;
+  background:rgba(255,255,255,.04);
+  border:1px solid #1e1e1e;border-radius:6px;
+  color:#444;font-size:.82rem;cursor:pointer;
+  font-family:'Inter',sans-serif;
+  display:flex;align-items:center;justify-content:center;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+#szc button:active{background:rgba(255,255,255,.1)}
+
+/* interim */
+#int{
+  text-align:center;font-size:.72rem;
+  color:#333;font-style:italic;
+  padding:0 8px;min-height:18px;
+  opacity:0;transition:opacity .25s;
+}
+#int.on{opacity:1}
+
+/* prev */
+#prev{
+  text-align:center;
+  font-size:var(--prev-size);
+  color:rgba(255,255,255,.22);
+  font-weight:500;line-height:1.3;
+  padding:3px 10px;min-height:0;
+}
+
+/* orig */
+#orig{
+  text-align:center;font-size:13px;
+  color:rgba(255,255,255,.3);
+  font-style:italic;padding:2px 10px;
+}
+
+/* MAIN subtitle */
+#main{
+  text-align:center;
+  font-size:var(--sub-size);
+  font-weight:700;color:#fff;
+  line-height:1.25;letter-spacing:-.01em;
+  background:rgba(0,0,0,.78);
+  border-left:4px solid var(--gold);
+  border-radius:7px;
+  padding:11px 18px 13px;
+  min-height:52px;
+  display:flex;align-items:center;justify-content:center;
+  word-break:break-word;
+  transition:border-color .3s;
+}
+#main.pend{
+  color:rgba(255,255,255,.3);
+  border-left-color:#222;
+  font-size:calc(var(--sub-size)*.62);
+  font-weight:400;font-style:italic;
+}
+#main.off{
+  background:transparent;
+  border-left-color:transparent;
+  min-height:0;
+}
+#main.pop{animation:sp .25s cubic-bezier(.22,1,.36,1)}
+@keyframes sp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── SETUP OVERLAY ── */
+#setup{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.92);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;padding:20px;
+}
+#setup.gone{display:none}
+.card{
+  background:#111;border:1px solid #1e1e1e;
+  border-radius:14px;padding:24px 22px;
+  max-width:380px;width:100%;
+}
+.card h2{font-size:1rem;font-weight:600;color:#ddd;margin-bottom:6px}
+.card p{font-size:.78rem;color:#444;line-height:1.6;margin-bottom:16px}
+.card ol{padding-left:18px;margin-bottom:18px}
+.card li{font-size:.78rem;color:#555;line-height:1.75}
+.card li strong{color:#777}
+.tip{
+  background:rgba(212,168,75,.07);
+  border-left:3px solid var(--gold);
+  border-radius:4px;padding:10px 13px;
+  font-size:.73rem;color:#666;line-height:1.6;
+  margin-bottom:18px;
+}
+.fbtn{
+  width:100%;padding:13px;
+  background:var(--gold);color:#000;
+  border:none;border-radius:9px;
+  font-size:.9rem;font-weight:700;
+  font-family:'Inter',sans-serif;cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.fbtn:active{filter:brightness(.85)}
+</style>
+</head>
+<body>
+
+<!-- SETUP CARD shown on first open -->
+<div id="setup">
+  <div class="card">
+    <h2>🕌 Bayan Live Subtitles</h2>
+    <p>Lisānud-Da'wat → English · Ashara Mubaraka 1447H</p>
+    <ol>
+      <li><strong>When Chrome asks for mic</strong> → tap <strong>Allow</strong></li>
+      <li>Hold your phone near the speaker</li>
+      <li>English subtitles appear automatically</li>
+    </ol>
+    <div class="tip">
+      ⚠️ <strong>Must open in Chrome</strong> (not Samsung Browser or Files app).<br>
+      If mic is blocked, go to Chrome Settings → Site Settings → Microphone → allow this site.
+    </div>
+    <button class="fbtn" onclick="dismissSetup()">I understand — Start App</button>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div id="bar">
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <div class="em">ب</div>
+    <div><div class="ttl">Bayan Subtitles</div><div class="sub">Ashara Mubaraka 1447H</div></div>
+  </div>
+
+  <select id="lang">
+    <option value="gu-IN" selected>Gujarati / Lisānud-Da'wat</option>
+    <option value="hi-IN">Hindi</option>
+    <option value="ur-PK">Urdu</option>
+    <option value="ar-SA">Arabic</option>
+  </select>
+
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+    <div id="dot"></div>
+    <span id="slbl">Ready</span>
+  </div>
+
+  <button class="gbtn" id="btn" onclick="toggle()">▶ Go Live</button>
+</div>
+
+<!-- STAGE -->
+<div id="stage">
+  <div id="idle">
+    <div class="ic">🎙️</div>
+    <p>Press <strong>Go Live</strong><br>hold phone near speaker<br>subtitles appear here</p>
+  </div>
+  <div id="szc">
+    <button onclick="sz(-3)" aria-label="Smaller">A−</button>
+    <button onclick="sz(+3)" aria-label="Larger">A+</button>
+  </div>
+  <div id="int"></div>
+  <div id="prev"></div>
+  <div id="orig"></div>
+  <div id="main" class="off"></div>
+</div>
+
+<script>
+// ── Glossary ───────────────────────────────────────────────────────────────
+const G=[
+  ['aqa moula','Aqa Moula'],['aqamoula','Aqa Moula'],['aqua moula','Aqa Moula'],['aga moula','Aqa Moula'],
+  ['syedna','Syedna'],['syed na','Syedna'],['saiyedna','Syedna'],['saina','Syedna'],
+  ['imam husain','Imam Husain AS'],['imam hussain','Imam Husain AS'],['imam hossain','Imam Husain AS'],
+  ['imam ali','Imam Ali AS'],['imam hasan','Imam Hasan AS'],['imam hassan','Imam Hasan AS'],
+  ['bibi fatema','Bibi Fatema SA'],['bibi fatima','Bibi Fatema SA'],['fatema','Fatema SA'],
+  ['hazrat ali','Hazrat Ali AS'],['yazid','Yazid'],['ibn ziyad','Ibn Ziyad'],['shimr','Shimr'],
+  ['karbala','Karbala'],['karbalaa','Karbala'],['karbaala','Karbala'],
+  ['mumineen','the believers'],['muminin','the believers'],['momineen','the believers'],
+  ['dawat','the Faith'],['da wat','the Faith'],['da\'wat','the Faith'],
+  ['moula','Moula'],['maula','Moula'],
+  ['waaz','the waaz (sermon)'],['waz','the waaz'],['bayaan','the bayan'],['bayan','the bayan'],
+  ['namaaz','prayer'],['namaz','prayer'],['salah','prayer'],['salat','prayer'],
+  ['roza','fasting'],['rozaa','fasting'],
+  ['zakat','zakat (charity)'],['sadaqa','charity'],['sadaqah','charity'],
+  ['hajj','Hajj'],['umra','Umra'],['umrah','Umra'],
+  ['tasbih','glorification of Allah'],
+  ['du a','du\'a (supplication)'],['dua','du\'a (supplication)'],['duaa','supplication'],
+  ['jannat','paradise'],['jannah','paradise'],['jannat ul firdaus','the highest paradise'],
+  ['jahannam','hellfire'],['noor','divine light'],['nur','divine light'],
+  ['barakat','blessings'],['barakah','blessings'],['barkat','blessings'],
+  ['shukr','gratitude'],['shukar','gratitude'],['shukriya','thankfulness'],
+  ['khushi','spiritual joy'],['khushu','humility in prayer'],
+  ['hifazat','divine protection'],['hifaazat','divine protection'],
+  ['tawba','repentance'],['toba','repentance'],['istighfar','seeking forgiveness'],
+  ['qiyamat','Day of Judgement'],['qayamat','Day of Judgement'],['qiyamah','Day of Judgement'],
+  ['akhirat','the hereafter'],['aakhirat','the hereafter'],['akhira','the hereafter'],
+  ['dunya','this world'],['duniya','this world'],
+  ['ibadat','worship'],['ibaadat','worship'],
+  ['wali','guardian saint'],['imam','Imam'],['amil','the Amil Saheb'],
+  ['ashara','Ashara Mubaraka'],['ashra','Ashara'],['ashara mubaraka','Ashara Mubaraka'],
+  ['matam','matam (lamentation)'],['azaa','grief and mourning'],['aazaa','grief and mourning'],
+  ['noha','noha (elegy)'],['marsiya','marsiya (lamentation poetry)'],
+  ['majlis','the gathering'],['majlish','the gathering'],
+  ['ziyarat','sacred visit'],['shahaadat','martyrdom'],['shahadat','martyrdom'],
+  ['milaad','milaad (birth celebration)'],
+  ['mehfil','devotional gathering'],['mehfeel','devotional gathering'],
+  ['madad','intercession and help'],['shafaat','intercession'],
+  ['allah','Allah'],['bismillah','In the name of Allah'],
+  ['alhamdulillah','All praise be to Allah'],['subhanallah','Glory be to Allah'],
+  ['inshallah','God willing'],['mashallah','as Allah has willed'],
+  ['allahu akbar','Allah is the Greatest'],
+  ['ya husain','O Husain'],['ya ali','O Ali'],['lanat','curse upon'],
+  ['che','is'],['hato','was'],['hata','were'],['ane','and'],['pan','also'],
+  ['tamne','to you all'],['tame','you'],['ame','we'],['aa','this'],
+  ['karo','do'],['karo che','are doing'],['joi','seeing'],['aave','comes'],
+  ['kahu','I say'],['kahe','says'],['kaho','you say'],
+];
+
+function fix(t){
+  let o=t;
+  for(const[f,r]of G){
+    const re=new RegExp('(?<![\\w])'
+      +f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
+      +'(?![\\w])','gi');
+    o=o.replace(re,r);
+  }
+  return o;
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let rec=null,live=false,q=Promise.resolve(),ct=null,sz_=34;
+
+// ── Setup card ─────────────────────────────────────────────────────────────
+function dismissSetup(){
+  document.getElementById('setup').classList.add('gone');
+}
+
+// ── Wake lock ──────────────────────────────────────────────────────────────
+let wl=null;
+async function wake(){
+  try{ if('wakeLock' in navigator) wl=await navigator.wakeLock.request('screen'); }catch(e){}
+}
+wake();
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') wake(); });
+
+// ── Toggle ─────────────────────────────────────────────────────────────────
+function toggle(){ live?stop():go(); }
+
+function go(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert('Please open this page in Google Chrome browser.'); return; }
+
+  rec=new SR();
+  rec.continuous=true;
+  rec.interimResults=true;
+  rec.lang=document.getElementById('lang').value;
+  rec.maxAlternatives=1;
+
+  rec.onstart=()=>{
+    live=true;
+    st('live','LIVE');
+    const b=document.getElementById('btn');
+    b.textContent='■ Stop'; b.className='gbtn stop';
+    document.getElementById('idle').classList.add('gone');
+    clr();
+  };
+
+  rec.onend=()=>{ if(live) setTimeout(()=>{ try{rec.start()}catch(e){} },250); };
+
+  rec.onerror=e=>{
+    if(e.error==='no-speech') return;
+    if(e.error==='not-allowed'){
+      alert('Microphone blocked.\n\n1. Tap the lock/info icon in Chrome address bar\n2. Tap Site settings\n3. Set Microphone to Allow\n4. Reload and try again');
+      stop(); return;
+    }
+    if(e.error==='network'){ st('idle','No internet ⚠'); }
+  };
+
+  rec.onresult=res=>{
+    let interim='';
+    for(let i=res.resultIndex;i<res.results.length;i++){
+      const r=res.results[i];
+      if(r.isFinal){
+        const raw=r[0].transcript.trim();
+        if(raw.length>2){ hInt(false); enq(raw); }
+      } else { interim+=r[0].transcript; }
+    }
+    if(interim) hInt(true,interim);
+  };
+
+  try{ rec.start(); }
+  catch(e){ alert('Could not access mic: '+e.message); }
+}
+
+function stop(){
+  live=false;
+  try{ rec&&rec.stop(); }catch(e){}
+  rec=null;
+  st('idle','Ready');
+  const b=document.getElementById('btn');
+  b.textContent='▶ Go Live'; b.className='gbtn';
+  hInt(false);
+}
+
+// ── Queue & translate ──────────────────────────────────────────────────────
+function enq(raw){ q=q.then(()=>tr(raw)); }
+
+async function tr(raw){
+  const corrected=fix(raw);
+  document.getElementById('orig').textContent=raw;
+  setM('Translating…','pend');
+  st('busy','Translating…');
+
+  const src=document.getElementById('lang').value.split('-')[0];
+  const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(corrected)}&langpair=${src}|en`;
+
+  try{
+    const r=await fetch(url,{signal:AbortSignal.timeout(7000)});
+    const d=await r.json();
+    let t=(d?.responseData?.translatedText||'').trim();
+
+    const bad=!t||t.toLowerCase()===corrected.toLowerCase()||t.toLowerCase()===raw.toLowerCase();
+
+    if(bad && src!=='hi'){
+      // fallback to Hindi
+      const r2=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(corrected)}&langpair=hi|en`,{signal:AbortSignal.timeout(7000)});
+      const d2=await r2.json();
+      const t2=(d2?.responseData?.translatedText||'').trim();
+      if(t2&&t2.toLowerCase()!==corrected.toLowerCase()) t=t2;
+    }
+
+    if(!t||t.toLowerCase()===raw.toLowerCase()) t=corrected;
+    t=t.charAt(0).toUpperCase()+t.slice(1);
+    show(raw,t);
+    st('live','LIVE');
+  }catch(e){
+    show(raw,corrected);
+    st('live','LIVE ⚠');
+  }
+}
+
+// ── Subtitle display ───────────────────────────────────────────────────────
+function show(orig,trans){
+  if(ct){ clearTimeout(ct); ct=null; }
+  const cur=document.getElementById('main').textContent;
+  if(cur&&cur!=='Translating…') document.getElementById('prev').textContent=cur;
+  document.getElementById('orig').textContent=orig;
+  setM(trans,'');
+  ct=setTimeout(()=>{
+    document.getElementById('main').className='off';
+    document.getElementById('main').textContent='';
+    document.getElementById('orig').textContent='';
+    document.getElementById('prev').textContent='';
+  },10000);
+}
+
+function setM(txt,cls){
+  const el=document.getElementById('main');
+  el.className=cls||'pop';
+  el.textContent=txt;
+  if(!cls){ void el.offsetWidth; el.classList.add('pop'); }
+}
+
+function clr(){
+  document.getElementById('main').className='off';
+  document.getElementById('main').textContent='';
+  document.getElementById('orig').textContent='';
+  document.getElementById('prev').textContent='';
+  document.getElementById('int').textContent='';
+}
+
+function hInt(show,txt=''){
+  const el=document.getElementById('int');
+  el.textContent=show?'🎙 '+txt:'';
+  el.classList.toggle('on',show);
+}
+
+// ── Font size ──────────────────────────────────────────────────────────────
+function sz(d){
+  sz_=Math.max(18,Math.min(100,sz_+d));
+  document.documentElement.style.setProperty('--sub-size',sz_+'px');
+  document.documentElement.style.setProperty('--prev-size',Math.round(sz_*.58)+'px');
+}
+
+// ── Status ─────────────────────────────────────────────────────────────────
+function st(s,l){
+  const d=document.getElementById('dot');
+  d.className=s==='live'?'live':s==='busy'?'busy':'';
+  document.getElementById('slbl').textContent=l;
+}
+</script>
+</body>
+</html>
