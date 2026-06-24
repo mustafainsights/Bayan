@@ -7,33 +7,341 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --gold:#d4a84b;
-  --green:#1a5c2a;
-  --sub-size:34px;
-  --prev-size:20px;
-}
-html,body{height:100%;width:100%;overflow:hidden}
-body{
-  background:#0d0d0d;
-  font-family:'Inter',sans-serif;
-  display:flex;
-  flex-direction:column;
-  height:100vh;
-  -webkit-user-select:none;
-  user-select:none;
+:root{--gold:#d4a84b;--sub-size:34px;--prev-size:20px;}
+html,body{height:100%;width:100%;overflow:hidden;}
+body{background:#0d0d0d;font-family:'Inter',sans-serif;display:flex;flex-direction:column;height:100vh;-webkit-user-select:none;user-select:none;}
+
+/* TOP BAR */
+#bar{background:#111;border-bottom:1px solid #1e1e1e;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;}
+.em{width:32px;height:32px;background:linear-gradient(135deg,#1a5c2a,#2a8a3e);border:1px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--gold);font-weight:700;flex-shrink:0;}
+.ttl{font-size:.82rem;font-weight:600;color:#ddd;line-height:1.2;}
+.sub{font-size:.62rem;color:#444;}
+select{background:#1a1a1a;border:1px solid #252525;border-radius:7px;padding:7px 10px;color:#bbb;font-size:.75rem;font-family:'Inter',sans-serif;outline:none;-webkit-appearance:none;flex:1;min-width:0;max-width:180px;}
+#dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;flex-shrink:0;transition:background .3s;}
+#dot.live{background:#e74c3c;animation:pd 1.4s infinite;}
+#dot.busy{background:var(--gold);}
+@keyframes pd{0%,100%{opacity:1}50%{opacity:.2}}
+#slbl{font-size:.72rem;color:#444;white-space:nowrap;}
+.gbtn{background:var(--gold);color:#000;border:none;border-radius:8px;padding:9px 18px;font-size:.82rem;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:filter .15s;}
+.gbtn:active{filter:brightness(.85);}
+.gbtn.stop{background:#1a1a1a;border:1px solid #c0392b;color:#c0392b;}
+
+/* STAGE */
+#stage{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:12px 12px 24px;gap:5px;overflow:hidden;position:relative;}
+#idle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;transition:opacity .4s;}
+#idle .ic{font-size:3rem;opacity:.12;margin-bottom:8px;}
+#idle p{font-size:.8rem;color:#2a2a2a;line-height:1.7;max-width:240px;}
+#idle p strong{color:#444;}
+#idle.gone{opacity:0;}
+#szc{position:absolute;top:10px;right:10px;display:flex;gap:5px;}
+#szc button{width:32px;height:32px;background:rgba(255,255,255,.04);border:1px solid #1e1e1e;border-radius:6px;color:#444;font-size:.82rem;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+#szc button:active{background:rgba(255,255,255,.1);}
+#int{text-align:center;font-size:.72rem;color:#333;font-style:italic;padding:0 8px;min-height:18px;opacity:0;transition:opacity .25s;}
+#int.on{opacity:1;}
+#prev{text-align:center;font-size:var(--prev-size);color:rgba(255,255,255,.22);font-weight:500;line-height:1.3;padding:3px 10px;min-height:0;}
+#orig{text-align:center;font-size:13px;color:rgba(255,255,255,.3);font-style:italic;padding:2px 10px;}
+#main{text-align:center;font-size:var(--sub-size);font-weight:700;color:#fff;line-height:1.25;letter-spacing:-.01em;background:rgba(0,0,0,.78);border-left:4px solid var(--gold);border-radius:7px;padding:11px 18px 13px;min-height:52px;display:flex;align-items:center;justify-content:center;word-break:break-word;transition:border-color .3s;}
+#main.pend{color:rgba(255,255,255,.3);border-left-color:#222;font-size:calc(var(--sub-size)*.62);font-weight:400;font-style:italic;}
+#main.off{background:transparent;border-left-color:transparent;min-height:0;}
+#main.pop{animation:sp .25s cubic-bezier(.22,1,.36,1);}
+@keyframes sp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ERROR TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid #c0392b;color:#e74c3c;padding:10px 18px;border-radius:8px;font-size:.78rem;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:999;}
+#toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <div class="em">ب</div>
+    <div><div class="ttl">Bayan Subtitles</div><div class="sub">Ashara Mubaraka 1447H</div></div>
+  </div>
+  <select id="lang">
+    <option value="gu" selected>Gujarati / Lisānud-Da'wat</option>
+    <option value="hi">Hindi</option>
+    <option value="ur">Urdu</option>
+    <option value="ar">Arabic</option>
+  </select>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+    <div id="dot"></div>
+    <span id="slbl">Ready</span>
+  </div>
+  <button class="gbtn" id="btn" onclick="toggle()">▶ Go Live</button>
+</div>
+
+<div id="stage">
+  <div id="idle">
+    <div class="ic">🎙️</div>
+    <p>Press <strong>Go Live</strong><br>hold phone near speaker<br>English subtitles appear here</p>
+  </div>
+  <div id="szc">
+    <button onclick="sz(-3)">A−</button>
+    <button onclick="sz(+3)">A+</button>
+  </div>
+  <div id="int"></div>
+  <div id="prev"></div>
+  <div id="orig"></div>
+  <div id="main" class="off"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Bohra glossary corrections ─────────────────────────────────────────────
+const G=[
+  ['aqa moula','Aqa Moula'],['aqamoula','Aqa Moula'],['aqua moula','Aqa Moula'],['aga moula','Aqa Moula'],
+  ['syedna','Syedna'],['syed na','Syedna'],['saiyedna','Syedna'],
+  ['imam husain','Imam Husain AS'],['imam hussain','Imam Husain AS'],
+  ['imam ali','Imam Ali AS'],['imam hasan','Imam Hasan AS'],
+  ['bibi fatema','Bibi Fatema SA'],['fatema','Fatema SA'],
+  ['yazid','Yazid'],['karbala','Karbala'],['shimr','Shimr'],
+  ['mumineen','the believers'],['muminin','the believers'],['momineen','the believers'],
+  ['dawat','the Faith'],['moula','Moula'],['maula','Moula'],
+  ['waaz','sermon'],['bayaan','sermon'],['bayan','sermon'],
+  ['namaaz','prayer'],['namaz','prayer'],['roza','fasting'],
+  ['sadaqa','charity'],['zakat','charity'],
+  ['du a','supplication'],['dua','supplication'],['duaa','supplication'],
+  ['jannat','paradise'],['jannah','paradise'],
+  ['jahannam','hellfire'],['noor','divine light'],
+  ['barakat','blessings'],['barkat','blessings'],
+  ['shukr','gratitude'],['shukar','gratitude'],
+  ['khushi','joy'],['hifazat','divine protection'],
+  ['tawba','repentance'],['toba','repentance'],
+  ['qiyamat','Day of Judgement'],['qayamat','Day of Judgement'],
+  ['akhirat','the hereafter'],['dunya','this world'],['duniya','this world'],
+  ['ibadat','worship'],['wali','guardian saint'],
+  ['ashara','Ashara Mubaraka'],['ashra','Ashara'],
+  ['matam','lamentation'],['azaa','mourning'],['aazaa','mourning'],
+  ['noha','elegy'],['marsiya','lamentation poetry'],
+  ['majlis','gathering'],['ziyarat','sacred visit'],
+  ['shahadat','martyrdom'],['shahaadat','martyrdom'],
+  ['madad','intercession'],['shafaat','intercession'],
+  ['allah','Allah'],['bismillah','In the name of Allah'],
+  ['alhamdulillah','All praise be to Allah'],
+  ['subhanallah','Glory be to Allah'],
+  ['inshallah','God willing'],['mashallah','as Allah has willed'],
+  ['allahu akbar','Allah is the Greatest'],
+  ['ya husain','O Husain AS'],['ya ali','O Ali AS'],
+  ['imam','Imam'],['amil','Amil Saheb'],
+];
+
+function applyGlossary(t){
+  let o=t;
+  for(const[f,r]of G){
+    const re=new RegExp('(?<![\\w])'+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\w])','gi');
+    o=o.replace(re,r);
+  }
+  return o;
 }
 
-/* ── TOP BAR ── */
-#bar{
-  background:#111;
-  border-bottom:1px solid #1e1e1e;
-  padding:10px 14px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-shrink:0;
-  flex-wrap:wrap;
+// ── Google Translate (free endpoint, no key needed) ────────────────────────
+async function googleTranslate(text, srcLang) {
+  // Use Google Translate's unofficial free endpoint
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${srcLang}&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  const data = await res.json();
+  // Response format: [[["translated","original",...],...],...]
+  let result = '';
+  if (data && data[0]) {
+    for (const chunk of data[0]) {
+      if (chunk && chunk[0]) result += chunk[0];
+    }
+  }
+  return result.trim();
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let rec=null, live=false, q=Promise.resolve(), ct=null, sz_=34;
+
+// Keep screen awake
+async function wake(){try{if('wakeLock' in navigator) await navigator.wakeLock.request('screen');}catch(e){}}
+wake();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible') wake();});
+
+// ── Toggle ─────────────────────────────────────────────────────────────────
+function toggle(){ live ? stop() : go(); }
+
+function go(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert('Please open in Google Chrome browser.'); return; }
+
+  // Map lang code to speech recognition locale
+  const langMap = { 'gu':'gu-IN', 'hi':'hi-IN', 'ur':'ur-PK', 'ar':'ar-SA' };
+  const srcLang = document.getElementById('lang').value;
+  const speechLang = langMap[srcLang] || 'gu-IN';
+
+  rec=new SR();
+  rec.continuous=true;
+  rec.interimResults=true;
+  rec.lang=speechLang;
+  rec.maxAlternatives=1;
+
+  rec.onstart=()=>{
+    live=true;
+    st('live','LIVE');
+    const b=document.getElementById('btn');
+    b.textContent='■ Stop'; b.className='gbtn stop';
+    document.getElementById('idle').classList.add('gone');
+    clr();
+  };
+
+  rec.onend=()=>{ if(live) setTimeout(()=>{ try{rec.start();}catch(e){} },300); };
+
+  rec.onerror=e=>{
+    if(e.error==='no-speech') return;
+    if(e.error==='not-allowed'){
+      alert('Mic blocked.\n\nTap the lock icon in address bar → Site settings → Microphone → Allow');
+      stop(); return;
+    }
+    if(e.error==='network') showToast('No internet connection');
+  };
+
+  rec.onresult=onResult;
+  try{ rec.start(); } catch(e){ alert('Cannot access mic: '+e.message); }
+}
+
+function stop(){
+  live=false;
+  try{ rec&&rec.stop(); }catch(e){}
+  rec=null;
+  st('idle','Ready');
+  const b=document.getElementById('btn');
+  b.textContent='▶ Go Live'; b.className='gbtn';
+  hInt(false);
+}
+
+// ── Speech result ──────────────────────────────────────────────────────────
+function onResult(event){
+  let interim='';
+  for(let i=event.resultIndex;i<event.results.length;i++){
+    const r=event.results[i];
+    if(r.isFinal){
+      const raw=r[0].transcript.trim();
+      if(raw.length>2){ hInt(false); enq(raw); }
+    } else { interim+=r[0].transcript; }
+  }
+  if(interim) hInt(true,interim);
+}
+
+function enq(raw){ q=q.then(()=>tr(raw)); }
+
+// ── Translate ──────────────────────────────────────────────────────────────
+async function tr(raw){
+  const srcLang = document.getElementById('lang').value;
+  document.getElementById('orig').textContent=raw;
+  setM('Translating…','pend');
+  st('busy','Translating…');
+
+  try{
+    // First try Google Translate with original text
+    let translation = await googleTranslate(raw, srcLang);
+
+    // If translation looks same as input or empty, try with glossary applied
+    if(!translation || translation.toLowerCase()===raw.toLowerCase()){
+      const corrected = applyGlossary(raw);
+      if(corrected !== raw){
+        translation = await googleTranslate(corrected, srcLang);
+      }
+    }
+
+    // If still nothing, apply glossary and show that
+    if(!translation || translation.toLowerCase()===raw.toLowerCase()){
+      translation = applyGlossary(raw);
+    }
+
+    // Capitalize
+    translation = translation.charAt(0).toUpperCase() + translation.slice(1);
+
+    // Apply glossary fixes on the translation too (for any missed terms)
+    translation = fixTranslation(translation);
+
+    show(raw, translation);
+    st('live','LIVE');
+  } catch(e){
+    // Network error — show glossary corrected version
+    const fallback = applyGlossary(raw);
+    show(raw, fallback);
+    st('live','LIVE');
+    showToast('Translation failed — check internet');
+  }
+}
+
+// Fix common mistranslations in the output
+function fixTranslation(t){
+  const fixes = [
+    [/\bMaula\b/g,'Moula'],
+    [/\bsalat\b/gi,'prayer'],
+    [/\bsalah\b/gi,'prayer'],
+    [/\balam\b/gi,'flag'],
+    [/\bhussein\b/gi,'Husain AS'],
+    [/\bhusain\b(?! AS)/gi,'Husain AS'],
+    [/\bimam\b(?! husain| ali| hasan)/gi,'Imam'],
+    [/Ya Husain/g,'Ya Husain AS'],
+  ];
+  let out=t;
+  for(const[re,rep]of fixes) out=out.replace(re,rep);
+  return out;
+}
+
+// ── UI ─────────────────────────────────────────────────────────────────────
+function show(orig,trans){
+  if(ct){ clearTimeout(ct); ct=null; }
+  const cur=document.getElementById('main').textContent;
+  if(cur&&cur!=='Translating…') document.getElementById('prev').textContent=cur;
+  document.getElementById('orig').textContent=orig;
+  setM(trans,'');
+  ct=setTimeout(()=>{
+    document.getElementById('main').className='off';
+    document.getElementById('main').textContent='';
+    document.getElementById('orig').textContent='';
+    document.getElementById('prev').textContent='';
+  },10000);
+}
+
+function setM(txt,cls){
+  const el=document.getElementById('main');
+  el.className=cls||'pop';
+  el.textContent=txt;
+  if(!cls){ void el.offsetWidth; el.classList.add('pop'); }
+}
+
+function clr(){
+  ['main','orig','prev','int'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.textContent='';
+    if(id==='main') el.className='off';
+    if(id==='int') el.classList.remove('on');
+  });
+}
+
+function hInt(show,txt=''){
+  const el=document.getElementById('int');
+  el.textContent=show?'🎙 '+txt:'';
+  el.classList.toggle('on',show);
+}
+
+function st(s,l){
+  const d=document.getElementById('dot');
+  d.className=s==='live'?'live':s==='busy'?'busy':'';
+  document.getElementById('slbl').textContent=l;
+}
+
+function sz(d){
+  sz_=Math.max(18,Math.min(100,sz_+d));
+  document.documentElement.style.setProperty('--sub-size',sz_+'px');
+  document.documentElement.style.setProperty('--prev-size',Math.round(sz_*.58)+'px');
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>
 }
 .em{
   width:32px;height:32px;
